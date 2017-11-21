@@ -43,6 +43,7 @@ _SELECT_ALL = [0]
 
 # Functions
 _BUILD_PYLON = actions.FUNCTIONS.Build_Pylon_screen.id
+_BUILD_PROBE = actions.FUNCTIONS.Train_Probe_quick.id
 _BUILD_GATEWAY = actions.FUNCTIONS.Build_Gateway_screen.id
 _NOOP = actions.FUNCTIONS.no_op.id
 _SELECT_POINT = actions.FUNCTIONS.select_point.id
@@ -58,9 +59,12 @@ _PROTOSS_PYLON = 60
 _PROTOSS_PROBE = 84
 
 # Parameters
-_PLAYER_SELF = 1
 _NOT_QUEUED = [0]
+_PLAYER_SELF = 1
 _QUEUED = [1]
+_SUPPLY_MAX = 4
+_SUPPLY_USED = 3
+
 
 
 
@@ -93,6 +97,10 @@ class MineMinerals(base_agent.BaseAgent):
     self.gateway_built = False
 
 
+    # Macro
+    self.nexus_selected = False
+
+
   def transformLocation(self, x, x_distance, y, y_distance):
       if not self.base_top_left:
           return [x - x_distance, y - y_distance]
@@ -115,6 +123,10 @@ class MineMinerals(base_agent.BaseAgent):
     if self.count == 0:
       self.count = self.count_max
       self.state = next(self.schedule)
+      self.pylon_built = False
+      self.gateway_built = False
+      self.probe_selected = False
+      self.nexus_selected = False
     else:
       self.count -= 1
 
@@ -156,6 +168,22 @@ class MineMinerals(base_agent.BaseAgent):
 
     if self.state == 'macro':
       print("macroing")
+      if not self.nexus_selected:
+        unit_type = obs.observation["screen"][_UNIT_TYPE]
+        unit_y, unit_x = (unit_type == _PROTOSS_NEXUS).nonzero()
+
+        target = [int(unit_x.mean()), int(unit_y.mean())]
+
+        self.nexus_selected = True
+
+        return actions.FunctionCall(_SELECT_POINT, [_NOT_QUEUED, target])
+      else:
+        print('trying to build a probe')
+        if _BUILD_PROBE in obs.observation["available_actions"]:
+          self.nexus_selected = False
+          return actions.FunctionCall(_BUILD_PROBE, [_QUEUED])
+
+
       return actions.FunctionCall(_NO_OP, [])
 
     if self.state == 'micro':
