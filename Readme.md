@@ -25,6 +25,13 @@ python -m pysc2.bin.agent --map CollectMineralShards --agent saltbot.agents.scri
 ```
 
 
+or
+
+
+```
+python -m pysc2.bin.agent --map Simple64 --agent saltbot.agents.saltbot.MineMinerals --agent_race P
+```
+
 
 
 Examples
