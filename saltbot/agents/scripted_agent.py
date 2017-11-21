@@ -53,13 +53,22 @@ class MoveToBeacon(base_agent.BaseAgent):
       return actions.FunctionCall(_SELECT_ARMY, [_SELECT_ALL])
 
 
-def find_marine(obs):
+def find_marines(obs):
+  """ Will find the two marines in the collect minerals map"""
   player_relative = obs.observation["screen"][_PLAYER_RELATIVE]
   player_y, player_x = (player_relative == _PLAYER_FRIENDLY).nonzero()
+  marines = []
+  # first half of arrays of units
   half_x = player_x[:int(len(player_x)/2)]
   half_y = player_y[:int(len(player_y)/2)]
   marine = [int(half_x.mean()), int(half_y.mean())]
-  return marine
+  marines.append(marine)
+  # second half of arrays of units
+  half_x = player_x[int(len(player_x)/2):]
+  half_y = player_y[int(len(player_y)/2):]
+  marine = [int(half_x.mean()), int(half_y.mean())]
+  marines.append(marine)
+  return marines
 
 
 class NibzCollectMineralShards(base_agent.BaseAgent):
@@ -76,7 +85,7 @@ class NibzCollectMineralShards(base_agent.BaseAgent):
       player_y, player_x = (player_relative == _PLAYER_FRIENDLY).nonzero()
       if not neutral_y.any() or not player_y.any():
         return actions.FunctionCall(_NO_OP, [])
-      player = find_marine(obs)
+      player = find_marines(obs)[0]
       closest, min_dist = None, None
       for p in zip(neutral_x, neutral_y):
         dist = numpy.linalg.norm(numpy.array(player) - numpy.array(p))
@@ -84,7 +93,7 @@ class NibzCollectMineralShards(base_agent.BaseAgent):
           closest, min_dist = p, dist
       return actions.FunctionCall(_MOVE_SCREEN, [_NOT_QUEUED, closest])
     else:
-      marine = find_marine(obs)
+      marine = find_marines(obs)[0]
       return actions.FunctionCall(actions.FUNCTIONS.select_point.id, [[1], [marine[0], marine[1]]])
 
 
