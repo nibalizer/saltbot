@@ -22,6 +22,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 import time
+import itertools
 
 import numpy
 
@@ -67,12 +68,29 @@ _QUEUED = [1]
 class MineMinerals(base_agent.BaseAgent):
   """An agent specifically for mining up some minerals"""
 
-  base_top_left = None
+  def __init__(self):
+    super(MineMinerals, self).__init__()
 
-  # Build order
-  probe_selected = False
-  pylon_built = False
-  gateway_built = False
+    # configurable parameters
+    self.count_max = 10
+
+
+    # scehduling system
+    self.schedule = itertools.cycle(['macro', 'build', 'micro'])
+    self.state = 'macro'
+    self.count = self.count_max
+
+    # simple flag to do one time setup stuff
+    # right now this is just 'which corner' detection
+    self.setup_complete = False
+
+
+    self.base_top_left = None
+
+    # Build order
+    self.probe_selected = False
+    self.pylon_built = False
+    self.gateway_built = False
 
 
   def transformLocation(self, x, x_distance, y, y_distance):
@@ -87,41 +105,61 @@ class MineMinerals(base_agent.BaseAgent):
 
     time.sleep(0.1)
 
-    # Detect upper left
-    player_y, player_x = (obs.observation["minimap"][_PLAYER_RELATIVE] == _PLAYER_SELF).nonzero()
-    self.base_top_left = player_y.mean() <= 31
+    if self.setup_complete:
+      # Detect which corner we spawned in (and which direction the enemy is in
+      player_y, player_x = (obs.observation["minimap"][_PLAYER_RELATIVE] == _PLAYER_SELF).nonzero()
+      self.base_top_left = player_y.mean() <= 31
+      self.setup_complete = True
 
-    # Create Pylon
-    if not self.pylon_built:
-      if not self.probe_selected:
-        unit_type = obs.observation["screen"][_UNIT_TYPE]
-        unit_y, unit_x = (unit_type == _PROTOSS_PROBE).nonzero()
 
-        target = [unit_x[0], unit_y[0]]
+    if self.count == 0:
+      self.count = self.count_max
+      self.state = next(self.schedule)
+    else:
+      self.count -= 1
 
-        self.probe_selected = True
-        
-        return actions.FunctionCall(_SELECT_POINT, [_NOT_QUEUED, target])
-        
-      elif _BUILD_PYLON in obs.observation["available_actions"]:
-        unit_type = obs.observation["screen"][_UNIT_TYPE]
-        unit_y, unit_x = (unit_type == _PROTOSS_NEXUS).nonzero()
+    if self.state == 'build':
+      print("doing the build order")
 
-        target = self.transformLocation(int(unit_x.mean()), 0, int(unit_y.mean()), 20)
+      # Create Pylon
+      if not self.pylon_built:
+        if not self.probe_selected:
+          unit_type = obs.observation["screen"][_UNIT_TYPE]
+          unit_y, unit_x = (unit_type == _PROTOSS_PROBE).nonzero()
 
-        self.pylon_built = True
+          target = [unit_x[0], unit_y[0]]
 
-        return actions.FunctionCall(_BUILD_PYLON, [_NOT_QUEUED, target])
-    elif not self.gateway_built:
-        if _BUILD_GATEWAY in obs.observation["available_actions"]:
-            unit_type = obs.observation["screen"][_UNIT_TYPE]
-            unit_y, unit_x = (unit_type == _PROTOSS_PYLON).nonzero()
-            target = self.transformLocation(int(unit_x.mean()), 10, int(unit_y.mean()), 5)
-            power = obs.observation["screen"][_POWER][target[1]][target[0]]
-            if power == 1:
+          self.probe_selected = True
+          
+          return actions.FunctionCall(_SELECT_POINT, [_NOT_QUEUED, target])
+          
+        elif _BUILD_PYLON in obs.observation["available_actions"]:
+          unit_type = obs.observation["screen"][_UNIT_TYPE]
+          unit_y, unit_x = (unit_type == _PROTOSS_NEXUS).nonzero()
 
-              # we have power at the site, build a gateway
-              self.gateway_built = True
-              return actions.FunctionCall(_BUILD_GATEWAY, [_NOT_QUEUED, target])
+          target = self.transformLocation(int(unit_x.mean()), 0, int(unit_y.mean()), 20)
+
+          self.pylon_built = True
+
+          return actions.FunctionCall(_BUILD_PYLON, [_NOT_QUEUED, target])
+      elif not self.gateway_built:
+          if _BUILD_GATEWAY in obs.observation["available_actions"]:
+              unit_type = obs.observation["screen"][_UNIT_TYPE]
+              unit_y, unit_x = (unit_type == _PROTOSS_PYLON).nonzero()
+              target = self.transformLocation(int(unit_x.mean()), 10, int(unit_y.mean()), 5)
+              power = obs.observation["screen"][_POWER][target[1]][target[0]]
+              if power == 1:
+
+                # we have power at the site, build a gateway
+                self.gateway_built = True
+                return actions.FunctionCall(_BUILD_GATEWAY, [_NOT_QUEUED, target])
+
+    if self.state == 'macro':
+      print("macroing")
+      return actions.FunctionCall(_NO_OP, [])
+
+    if self.state == 'micro':
+      print("microing")
+      return actions.FunctionCall(_NO_OP, [])
 
     return actions.FunctionCall(_NO_OP, [])
