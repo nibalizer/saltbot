@@ -42,6 +42,7 @@ _SELECT_ALL = [0]
 
 # Functions
 _BUILD_PYLON = actions.FUNCTIONS.Build_Pylon_screen.id
+_BUILD_GATEWAY = actions.FUNCTIONS.Build_Gateway_screen.id
 _NOOP = actions.FUNCTIONS.no_op.id
 _SELECT_POINT = actions.FUNCTIONS.select_point.id
 
@@ -51,6 +52,7 @@ _UNIT_TYPE = features.SCREEN_FEATURES.unit_type.index
 
 # Unit IDs
 _PROTOSS_NEXUS = 59
+_PROTOSS_PYLON = 60
 _PROTOSS_PROBE = 84
 
 # Parameters
@@ -67,8 +69,10 @@ class MineMinerals(base_agent.BaseAgent):
   base_top_left = None
 
   # Build order
-  pylon_built = False
   probe_selected = False
+  pylon_built = False
+  gateway_built = False
+
 
   def transformLocation(self, x, x_distance, y, y_distance):
       if not self.base_top_left:
@@ -107,5 +111,15 @@ class MineMinerals(base_agent.BaseAgent):
         self.pylon_built = True
 
         return actions.FunctionCall(_BUILD_PYLON, [_NOT_QUEUED, target])
+    elif not self.gateway_built:
+        if _BUILD_GATEWAY in obs.observation["available_actions"]:
+            unit_type = obs.observation["screen"][_UNIT_TYPE]
+            unit_y, unit_x = (unit_type == _PROTOSS_PYLON).nonzero()
+
+            target = self.transformLocation(int(unit_x.mean()), 10, int(unit_y.mean()), 5)
+
+            #self.gateway_built = True
+
+            return actions.FunctionCall(_BUILD_GATEWAY, [_NOT_QUEUED, target])
 
     return actions.FunctionCall(_NO_OP, [])
