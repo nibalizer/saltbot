@@ -48,6 +48,7 @@ _SELECT_POINT = actions.FUNCTIONS.select_point.id
 
 # Features
 _PLAYER_RELATIVE = features.SCREEN_FEATURES.player_relative.index
+_POWER = features.SCREEN_FEATURES.power.index
 _UNIT_TYPE = features.SCREEN_FEATURES.unit_type.index
 
 # Unit IDs
@@ -115,11 +116,12 @@ class MineMinerals(base_agent.BaseAgent):
         if _BUILD_GATEWAY in obs.observation["available_actions"]:
             unit_type = obs.observation["screen"][_UNIT_TYPE]
             unit_y, unit_x = (unit_type == _PROTOSS_PYLON).nonzero()
-
             target = self.transformLocation(int(unit_x.mean()), 10, int(unit_y.mean()), 5)
+            power = obs.observation["screen"][_POWER][target[1]][target[0]]
+            if power == 1:
 
-            #self.gateway_built = True
-
-            return actions.FunctionCall(_BUILD_GATEWAY, [_NOT_QUEUED, target])
+              # we have power at the site, build a gateway
+              self.gateway_built = True
+              return actions.FunctionCall(_BUILD_GATEWAY, [_NOT_QUEUED, target])
 
     return actions.FunctionCall(_NO_OP, [])
