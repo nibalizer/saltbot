@@ -111,8 +111,11 @@ class MineMinerals(base_agent.BaseAgent):
   def step(self, obs):
     super(MineMinerals, self).step(obs)
 
+    # Sleep in the loop so we can see what is going on
     time.sleep(0.1)
 
+
+    # Do setup tasks
     if self.setup_complete:
       # Detect which corner we spawned in (and which direction the enemy is in
       player_y, player_x = (obs.observation["minimap"][_PLAYER_RELATIVE] == _PLAYER_SELF).nonzero()
@@ -120,6 +123,7 @@ class MineMinerals(base_agent.BaseAgent):
       self.setup_complete = True
 
 
+    # Scheduler loop
     if self.count == 0:
       self.count = self.count_max
       self.state = next(self.schedule)
@@ -130,6 +134,7 @@ class MineMinerals(base_agent.BaseAgent):
     else:
       self.count -= 1
 
+    # Build order tasks
     if self.state == 'build':
       print("doing the build order")
 
@@ -166,6 +171,7 @@ class MineMinerals(base_agent.BaseAgent):
                 self.gateway_built = True
                 return actions.FunctionCall(_BUILD_GATEWAY, [_NOT_QUEUED, target])
 
+    # macro tasks
     if self.state == 'macro':
       print("macroing")
       if not self.nexus_selected:
@@ -186,6 +192,7 @@ class MineMinerals(base_agent.BaseAgent):
 
       return actions.FunctionCall(_NO_OP, [])
 
+    # micro tasks
     if self.state == 'micro':
       print("microing")
       return actions.FunctionCall(_NO_OP, [])
