@@ -24,3 +24,13 @@ From the root directory of the repository run:
 python -m pysc2.bin.agent --map CollectMineralShards --agent saltbot.agents.scripted_agent.NibzCollectMineralShards
 ```
 
+
+
+
+Examples
+--------
+
+
+Collect Mineral Shards
+
+[gif](https://gfycat.com/gifs/detail/TimelyMeatyBubblefish)
