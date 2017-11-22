@@ -23,6 +23,7 @@ from __future__ import division
 from __future__ import print_function
 import time
 import itertools
+import random
 
 import numpy
 
@@ -118,7 +119,7 @@ class MineMinerals(base_agent.BaseAgent):
     # Do setup tasks
     if self.setup_complete:
       # Detect which corner we spawned in (and which direction the enemy is in
-      player_y, player_x = (obs.observation["minimap"][_PLAYER_RELATIVE] == _PLAYER_SELF).nonzero()
+      player_y, player_x = (obs.observation["minimap"][_PLAYER_RELATIVE] == _PLAYER_NEUTRAL).nonzero()
       self.base_top_left = player_y.mean() <= 31
       self.setup_complete = True
 
@@ -174,20 +175,50 @@ class MineMinerals(base_agent.BaseAgent):
     # macro tasks
     if self.state == 'macro':
       print("macroing")
-      if not self.nexus_selected:
-        unit_type = obs.observation["screen"][_UNIT_TYPE]
-        unit_y, unit_x = (unit_type == _PROTOSS_NEXUS).nonzero()
+      #  Probes and Pylons
+      supply_buffer = obs.observation["player"][_SUPPLY_MAX] - obs.observation["player"][_SUPPLY_USED]
 
-        target = [int(unit_x.mean()), int(unit_y.mean())]
+      # build pylons if we have less than 5 supply from supply block
+      if supply_buffer > 5:
+        if not self.nexus_selected:
+          unit_type = obs.observation["screen"][_UNIT_TYPE]
+          unit_y, unit_x = (unit_type == _PROTOSS_NEXUS).nonzero()
 
-        self.nexus_selected = True
+          target = [int(unit_x.mean()), int(unit_y.mean())]
 
-        return actions.FunctionCall(_SELECT_POINT, [_NOT_QUEUED, target])
+          self.nexus_selected = True
+
+          return actions.FunctionCall(_SELECT_POINT, [_NOT_QUEUED, target])
+        else:
+          print('trying to build a probe')
+          if _BUILD_PROBE in obs.observation["available_actions"]:
+            self.nexus_selected = False
+            return actions.FunctionCall(_BUILD_PROBE, [_QUEUED])
       else:
-        print('trying to build a probe')
-        if _BUILD_PROBE in obs.observation["available_actions"]:
-          self.nexus_selected = False
-          return actions.FunctionCall(_BUILD_PROBE, [_QUEUED])
+        if not self.probe_selected:
+          unit_type = obs.observation["screen"][_UNIT_TYPE]
+          unit_y, unit_x = (unit_type == _PROTOSS_PROBE).nonzero()
+
+          target = [unit_x[0], unit_y[0]]
+
+          self.probe_selected = True
+
+          return actions.FunctionCall(_SELECT_POINT, [_NOT_QUEUED, target])
+
+        elif _BUILD_PYLON in obs.observation["available_actions"]:
+          unit_type = obs.observation["screen"][_UNIT_TYPE]
+          unit_y, unit_x = (unit_type == _PROTOSS_NEXUS).nonzero()
+          x_rand = random.choice(range(-32, 32))
+          y_rand = random.choice(range(-32, 32))
+          if x_rand <= 0:
+            x_rand = 0
+          if y_rand <= 0:
+            y_rand = 0
+
+          target = self.transformLocation(int(unit_x.mean()), x_rand, int(unit_y.mean()), y_rand)
+
+          self.probe_selected = False
+          return actions.FunctionCall(_BUILD_PYLON, [_NOT_QUEUED, target])
 
 
       return actions.FunctionCall(_NO_OP, [])
